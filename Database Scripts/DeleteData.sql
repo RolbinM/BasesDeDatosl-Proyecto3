@@ -35,7 +35,6 @@ DELETE FROM dbo.Puesto
 DELETE FROM dbo.Errores
 
 -- Eliminacion de Tablas Temporales
-DROP TABLE ##Operaciones
 DROP TABLE ##InsercionEmpleado
 DROP TABLE ##EliminarEmpleados
 DROP TABLE ##InsercionJornada

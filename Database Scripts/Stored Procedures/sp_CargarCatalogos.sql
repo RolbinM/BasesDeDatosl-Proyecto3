@@ -1,7 +1,7 @@
 USE [BDPlanillaObrera]
 GO
 
-/****** Object:  StoredProcedure [dbo].[sp_CargarCatalogos]    Script Date: 11/06/2021 2:24:03 ******/
+/****** Object:  StoredProcedure [dbo].[sp_CargarCatalogos]    Script Date: 13/06/2021 1:50:26 ******/
 SET ANSI_NULLS ON
 GO
 

@@ -1,7 +1,7 @@
 USE [BDPlanillaObrera]
 GO
 
-/****** Object:  StoredProcedure [dbo].[sp_CargarTipoDeduccion]    Script Date: 11/06/2021 2:21:24 ******/
+/****** Object:  StoredProcedure [dbo].[sp_CargarTipoDeduccion]    Script Date: 13/06/2021 1:51:33 ******/
 SET ANSI_NULLS ON
 GO
 
