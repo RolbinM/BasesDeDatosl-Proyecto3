@@ -6,6 +6,12 @@ DBCC CHECKIDENT(MarcaAsistencia,RESEED,0)
 DELETE FROM Jornada
 DBCC CHECKIDENT(Jornada,RESEED,0)
 
+DELETE FROM PlanillaXSemanaXEmpleado
+DBCC CHECKIDENT(PlanillaXSemanaXEmpleado,RESEED,0)
+
+DELETE FROM PlanillaXMesXEmpleado
+DBCC CHECKIDENT(PlanillaXMesXEmpleado,RESEED,0)
+
 DELETE FROM SemanaPlanilla
 DBCC CHECKIDENT(SemanaPlanilla,RESEED,0)
 
@@ -33,11 +39,3 @@ DELETE FROM dbo.TipoDocumentoIdentidad
 DELETE FROM dbo.Puesto
 
 DELETE FROM dbo.Errores
-
--- Eliminacion de Tablas Temporales
-DROP TABLE ##InsercionEmpleado
-DROP TABLE ##EliminarEmpleados
-DROP TABLE ##InsercionJornada
-DROP TABLE ##InsercionMarcaAsistencia
-DROP TABLE ##InsercionAsociaDeduccion
-DROP TABLE ##InsercionDesasociaDeduccion

@@ -41,6 +41,30 @@ BEGIN
 	WHERE Operacion = @primeraFecha
 	DECLARE @Count INT								-- Contador para los whiles
 
+	-- Marca de Asistencia
+
+
+	-- Calculo de la semana y mes 
+	IF DATEPART(WEEKDAY, @primeraFecha) = 4
+	BEGIN
+		IF(DATENAME(MONTH,DATEADD(DAY,1,@primeraFecha)) <> DATENAME(MONTH,DATEADD(DAY,-6,@primeraFecha)))
+		BEGIN
+			DECLARE @Semanas INT = 0
+			DECLARE @RecorrerSemanas DATE = (SELECT DATEADD(DAY,1,@primeraFecha))
+			WHILE (DATENAME(MONTH,DATEADD(DAY,1,@primeraFecha)) = (DATENAME(MONTH,@RecorrerSemanas)))
+			BEGIN
+				SET @RecorrerSemanas = (SELECT DATEADD(WEEK,1,@RecorrerSemanas))
+				SET @Semanas = @Semanas+1
+			END
+			INSERT INTO dbo.MesPlanilla
+			VALUES((SELECT DATEADD(DAY,1,@primeraFecha)), (SELECT DATEADD(DAY,7*@Semanas,@primeraFecha)))
+		END
+		
+		INSERT INTO dbo.SemanaPlanilla
+		VALUES((SELECT DATEADD(DAY,1,@primeraFecha)), (SELECT DATEADD(DAY,7,@primeraFecha)), (SELECT MAX(Id) AS Id FROM dbo.MesPlanilla))
+	END
+
+
 	-- Ingreso de los empleados nuevos 
 	IF((SELECT mt.Datos.exist('Operacion/NuevoEmpleado') FROM @Operaciones mt WHERE mt.Operacion = @primeraFecha) = 1)
 	BEGIN
@@ -75,26 +99,7 @@ BEGIN
 		DROP TABLE ##InsercionEmpleado
 	END
 
-	-- Calculo de la semana y mes 
-	IF DATEPART(WEEKDAY, @primeraFecha) = 4
-	BEGIN
-		IF(DATENAME(MONTH,DATEADD(DAY,1,@primeraFecha)) <> DATENAME(MONTH,DATEADD(DAY,-6,@primeraFecha)))
-		BEGIN
-			DECLARE @Semanas INT = 0
-			DECLARE @RecorrerSemanas DATE = (SELECT DATEADD(DAY,1,@primeraFecha))
-			WHILE (DATENAME(MONTH,DATEADD(DAY,1,@primeraFecha)) = (DATENAME(MONTH,@RecorrerSemanas)))
-			BEGIN
-				SET @RecorrerSemanas = (SELECT DATEADD(WEEK,1,@RecorrerSemanas))
-				SET @Semanas = @Semanas+1
-			END
-			INSERT INTO dbo.MesPlanilla
-			VALUES((SELECT DATEADD(DAY,1,@primeraFecha)), (SELECT DATEADD(DAY,7*@Semanas,@primeraFecha)))
-		END
-		
-		INSERT INTO dbo.SemanaPlanilla
-		VALUES((SELECT DATEADD(DAY,1,@primeraFecha)), (SELECT DATEADD(DAY,7,@primeraFecha)), (SELECT MAX(Id) AS Id FROM dbo.MesPlanilla))
-	END
+	-- Asocia y Desacocia deducciones
 
 	SET @primeraFecha = DATEADD(DAY,1,@primeraFecha);
 END
-
