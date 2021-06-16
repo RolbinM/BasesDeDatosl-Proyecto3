@@ -1,3 +1,4 @@
+
 USE BDPlanillaObrera
 
 EXEC sp_EliminarDatos					-- Vaciar datos de la base
@@ -163,6 +164,7 @@ BEGIN
 
         WHILE @Count > 0
 		BEGIN
+			select TOP(1)* from @InsercionMarcas where ValorDocumentoIdentidad = '96311578'
 			SELECT TOP(1)
 				@ValorDocumentoIdentidad = Emp.ValorDocumentoIdentidad, 
 				@FechaEntrada = Emp.FechaEntrada, 
@@ -328,6 +330,11 @@ BEGIN
 	SET @primeraFecha = DATEADD(DAY,1,@primeraFecha);
 END
 
-SELECT * FROM DeduccionXMesXEmpleado
-SELECT * FROM PlanillaXMesXEmpleado WHERE Id = 1
-Select * from 
+SELECT * FROM Empleado
+
+SELECT * FROM MarcaAsistencia AS Ma
+INNER JOIN dbo.Jornada AS Jor
+ON Ma.IdJornada = Jor.Id 
+INNER JOIN dbo.Empleado AS Emp
+ON Emp.Id = Jor.IdEmpleado
+WHERE Emp.Id = 1
