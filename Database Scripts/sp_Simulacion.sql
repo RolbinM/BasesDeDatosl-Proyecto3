@@ -9,6 +9,15 @@ DECLARE @Operaciones TABLE(				-- Tabla donde iteramos todas las operaciones
 	Datos XML
 )
 
+DECLARE @InsercionMarcas TABLE			-- Tabla donde iteramos las Marcas de Asistencia
+(
+	ValorDocumentoIdentidad VARCHAR(32),
+	FechaEntrada DATE,
+	FechaSalida DATE,
+	Secuencia INT,
+	ProduceError INT
+) 
+
 DECLARE @InsercionEmpleados TABLE(		-- Tabla donde ingresamos todos los empleados a insertar
 	Fecha DATE,
 	Nombre VARCHAR(64),
@@ -29,7 +38,7 @@ DECLARE @EliminarEmpleados TABLE (		-- Tabla donde guardamos todos los empleados
 	ProduceError INT
 ) 
 
-DECLARE @AsociarEmpleados TABLE 
+DECLARE @AsociarEmpleados TABLE			-- Tabla donde guardamos todas las asociaciones 
 (
 	ValorDocumentoIdentidad VARCHAR(32),
 	IdDeduccion INT,
@@ -38,7 +47,7 @@ DECLARE @AsociarEmpleados TABLE
 	ProduceError INT
 ) 
 
-DECLARE @DesasociarEmpleados TABLE 
+DECLARE @DesasociarEmpleados TABLE		-- Tabla donde guardamos todas las desasociaciones
 (
 	ValorDocumentoIdentidad VARCHAR(32),
 	IdDeduccion INT,
@@ -46,7 +55,7 @@ DECLARE @DesasociarEmpleados TABLE
 	ProduceError INT
 ) 
 
-DECLARE @IngresarJornada TABLE 
+DECLARE @IngresarJornada TABLE			-- Tablas donde almacenamos las siguientes jornadas
 (
 	ValorDocumentoIdentidad VARCHAR(32),
 	IdJornada INT,
@@ -82,6 +91,9 @@ DECLARE @IdDeduccion INT
 DECLARE @Monto DECIMAL(18,3)
 DECLARE @IdJornada INT
 
+DECLARE @FechaEntrada DATE
+DECLARE @FechaSalida DATE
+
 
 -- SIMULACION
 -- Carga de Catalogos ------------------------------------------------------------------------------
@@ -89,7 +101,7 @@ exec sp_CargarCatalogos			-- Carga los catalogos
 
 -- Simulacion --------------------------------------------------------------------------------------
 SELECT @catalogo = CAST(MY_XML AS xml) 
-FROM OPENROWSET(BULK 'C:\Users\rolbi\Desktop\Datos_Tarea3.xml', SINGLE_BLOB) AS T(MY_XML)
+FROM OPENROWSET(BULK 'C:\Datos_Tarea3.xml', SINGLE_BLOB) AS T(MY_XML)
 
 SELECT TOP 1 @primeraFecha = T.Item.value('@Fecha', 'date') 
 FROM @catalogo.nodes('Datos/Operacion') AS T(Item)
@@ -139,6 +151,35 @@ BEGIN
 		INSERT INTO dbo.SemanaPlanilla
 		VALUES((SELECT DATEADD(DAY,1,@primeraFecha)), (SELECT DATEADD(DAY,7,@primeraFecha)), (SELECT MAX(Id) AS Id FROM dbo.MesPlanilla))
 	END
+
+
+	-- Ingreso de la Marca Asistencia 
+	IF((SELECT mt.Datos.exist('Operacion/MarcaDeAsistencia') FROM @Operaciones mt WHERE mt.Operacion = @primeraFecha) = 1)
+	BEGIN
+		INSERT INTO @InsercionMarcas
+			SELECT * FROM dbo.CargarInsercionMarca(@Datos)
+
+		SELECT @Count = COUNT(*) FROM @InsercionMarcas;
+
+        WHILE @Count > 0
+		BEGIN
+			SELECT TOP(1)
+				@ValorDocumentoIdentidad = Emp.ValorDocumentoIdentidad, 
+				@FechaEntrada = Emp.FechaEntrada, 
+				@FechaSalida = Emp.FechaSalida 
+			FROM @InsercionMarcas AS Emp
+
+			/*
+			EXEC sp_InsertarMarca
+				@ValorDocumentoIdentidad
+                , @FechaEntrada
+				, @FechaSalida
+			*/
+			DELETE TOP (1) FROM @InsercionMarcas
+            SELECT @Count = COUNT(*) FROM @InsercionMarcas;
+		END
+	END
+
 
 	-- Ingreso de los empleados nuevos 
 	IF((SELECT mt.Datos.exist('Operacion/NuevoEmpleado') FROM @Operaciones mt WHERE mt.Operacion = @primeraFecha) = 1)
