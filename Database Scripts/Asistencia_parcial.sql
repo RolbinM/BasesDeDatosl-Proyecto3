@@ -23,7 +23,8 @@ BEGIN
 	BEGIN TRY
 		
 		DECLARE @TablaDeducciones TABLE
-		(
+		(	
+			Id INT,
 			IdEmpleado INT,
 			IdTipoDeduccion INT
 		)
@@ -50,7 +51,10 @@ BEGIN
 		DECLARE @TotalDeduccion INT
 		DECLARE @TipoObligatoria BIT
 		DECLARE @TipoMovObl INT
-
+		DECLARE @Monto DECIMAL (18,3)
+		DECLARE @Porcentaje DECIMAL (18,3)
+		DECLARE @SalarioBruto DECIMAL (18,3)
+		DECLARE @SalarioNeto DECIMAL (18,3)
 
 		 SELECT
 			@OutResultCode=0  -- codigo de ejecucion exitoso
@@ -197,23 +201,29 @@ BEGIN
 			deducciones de la semana que termina.
 			o Actualizar la instancia de planilla mensual del empleado, respecto de salario
 			Bruto y TotalDeducciones.
-			o Determinar si la semana que finaliza es la última del mes, si es así, crear una
+			o Determinar si la semana que finaliza es la Ãºltima del mes, si es asÃ­, crear una
 			nueva instancia de la planilla mensual del empleado.
 			o Crear nueva semana para Planilla semanal del empleado. 
 			*/
 
 			INSERT INTO @TablaDeducciones
 				SELECT
+					Deduc.Id,
 					Deduc.IdEmpleado,
 					Deduc.IdTipoDeduccion
 				FROM dbo.DeduccionXEmpleado AS Deduc
 				WHERE Deduc.FechaInicio <= @diaMov AND 
-					 (Deduc.FechaFinal <> NULL OR Deduc.FechaFinal >= @diaMov)
+					 (Deduc.FechaFinal <> NULL OR Deduc.FechaFinal >= @diaMov) --Revisar
 
 			SELECT @Count = COUNT(*) FROM @TablaDeducciones;
 			SELECT @TotalDeduccion = 0
 
 			WHILE @Count > 0
+
+			SELECT @SalarioBruto  = SalarioBruto
+					FROM dbo.PlanillaXSemanaXEmpleado
+					WHERE dbo.PlanillaXSemanaXEmpleado.Id = @idSPXE --Revisar
+
 			BEGIN
 				SELECT @TipoObligatoria  = EsObligatoria
 					FROM dbo.DeduccionXEmpleado
@@ -224,10 +234,46 @@ BEGIN
 
 				IF (@TipoObligatoria = 1)
 				BEGIN
+					SELECT @Porcentaje  = Porcentaje
+					FROM dbo.DeduccionXEmpleado
+					INNER JOIN dbo.TipoDeduccion 
+					ON dbo.DeduccionXEmpleado.IdTipoDeduccion = dbo.TipoDeduccion.ID
+					INNER JOIN dbo.DeduccionObligatoriaPorcentual
+					ON dbo.TipoDeduccion.ID = dbo.DeduccionObligatoriaPorcentual.Id
+					WHERE dbo.DeduccionXEmpleado.IdTipoDeduccion = (SELECT TOP(1) IdTipoDeduccion FROM @TablaDeducciones)
+
+					-- Cambiar alias a las tablas
+
+					SET @Monto = (@SalarioBruto * @Porcentaje) * -1
 					SET @TipoMovObl = 4
+					
 				END
 				ELSE ---Defino tipo de moviento, es o no obligatorio
 				BEGIN
+					IF EXISTS (SELECT 1 FROM dbo.DeduccionNoObligatoriaFija 
+					WHERE Id = (SELECT TOP(1) Id FROM @TablaDeducciones))
+
+					begin
+						SELECT @Porcentaje  = Monto
+						FROM dbo.DeduccionXEmpleado
+						INNER JOIN dbo.DeduccionNoObligatoriaFija 
+						ON dbo.DeduccionXEmpleado.Id = dbo.DeduccionNoObligatoriaFija.Id
+						WHERE dbo.DeduccionXEmpleado.Id = (SELECT TOP(1) Id FROM @TablaDeducciones)
+
+						SET @Monto = (@Porcentaje) * -1
+					end
+					else			
+
+					begin
+						SELECT @Porcentaje  = Porcentaje
+						FROM dbo.DeduccionXEmpleado
+						INNER JOIN dbo.DeduccionNoObligatoriaPorcentual
+						ON dbo.DeduccionXEmpleado.Id = dbo.DeduccionNoObligatoriaPorcentual.Id
+						WHERE dbo.DeduccionXEmpleado.Id = (SELECT TOP(1) Id FROM @TablaDeducciones)
+
+						SET @Monto = (@SalarioBruto * @Porcentaje) * -1
+
+					end
 					SET @TipoMovObl = 5
 				END
 				
@@ -235,13 +281,13 @@ BEGIN
 				VALUES 
 				(
 					@diaMov, 
-					@SalarioDoble, 
+					@Monto, 
 					@TipoMovObl, 
 					@idSPXE
 				)
 				
 				SELECT @IdUltimoMov = MAX(Id) FROM dbo.MovimientoPlanilla 
-				SELECT @IdUltimaMarca = MAX(Id) FROM dbo.MarcaAsistencia
+				SELECT @IdUltimaMarca = (SELECT TOP (1) Id FROM @TablaDeducciones)
 
 				INSERT INTO dbo.MovimientoDeduccion
 				VALUES
@@ -249,15 +295,34 @@ BEGIN
 					@IdUltimoMov,
 					@IdUltimaMarca
 				)
+
+				UPDATE dbo.PlanillaXSemanaXEmpleado
+				SET SalarioNeto = SalarioNeto + @Monto ---Monto negativo por el (*-1)
+				WHERE dbo.PlanillaXSemanaXEmpleado.Id = @idSPXE
+
+--- Deducciones en Deducciones x Mes por empleado
 			
 				DELETE TOP (1) FROM @TablaDeducciones
 				SELECT @Count = COUNT(*) FROM @TablaDeducciones;
+
 			END
 
+			--- Actualizar PlanillaxMesxEmpleado con salario y salario Bruto
+
+			SELECT @SalarioNeto = SalarioNeto
+					FROM dbo.PlanillaXSemanaXEmpleado
+					WHERE dbo.PlanillaXSemanaXEmpleado.Id = @idSPXE --Revisar
+
+			UPDATE dbo.PlanillaXMesXEmpleado
+			SET SalarioBruto = SalarioBruto + @SalarioBruto,
+				SalarioNeto = SalarioNeto + @SalarioNeto
+			WHERE dbo.PlanillaXMesXEmpleado.Id = @idMPXE
+
+			---Formato
 
 			-------------------------------------------------------------------------------------
 
-			IF(DATENAME(MONTH,DATEADD(DAY,1,@diaMov)) <> DATENAME(MONTH,DATEADD(DAY,-6,@diaMov)))
+			IF(DATENAME(MONTH,DATEADD(DAY,1,@diaMov)) <> DATENAME(MONTH,DATEADD(DAY,-6,@diaMov))) ---Arreglar Don Rolbin
 			BEGIN
 				SET @idMPXE = @idMPXE + 1
 				INSERT INTO PlanillaXMesXEmpleado
@@ -279,8 +344,6 @@ BEGIN
 				(SELECT MAX(Id) FROM dbo.SemanaPlanilla),
 				@idMPXE
 			)
-
-
 
 
 		END
