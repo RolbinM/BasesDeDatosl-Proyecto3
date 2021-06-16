@@ -9,7 +9,7 @@ SET QUOTED_IDENTIFIER ON
 GO
 
 
-CREATE PROCEDURE [dbo].[ProcesarAsistencia]
+CREATE PROCEDURE sp_InsertarMarca
 -- parametros de entrada
 	@inValDocEmpleado INT,
 	@inFechaEntrada DATETIME,
@@ -300,8 +300,35 @@ BEGIN
 				SET SalarioNeto = SalarioNeto + @Monto ---Monto negativo por el (*-1)
 				WHERE dbo.PlanillaXSemanaXEmpleado.Id = @idSPXE
 
---- Deducciones en Deducciones x Mes por empleado
-			
+
+
+				-- Calcula DeduccionXMesXEmpleado
+				IF EXISTS (SELECT 1 FROM dbo.DeduccionXMesXEmpleado 
+						   WHERE IdTipoDeduccion = (SELECT TOP(1) IdTipoDeduccion FROM @TablaDeducciones) AND
+						   IdPlanillaXMesXEmpleado = @idMPXE)
+				BEGIN
+					UPDATE dbo.DeduccionXMesXEmpleado
+					SET TotalDeduccion = TotalDeduccion + (@Monto*-1)
+					WHERE (
+						IdTipoDeduccion = (SELECT TOP(1) IdTipoDeduccion FROM @TablaDeducciones) AND
+						IdPlanillaXMesXEmpleado = @idMPXE
+					)
+
+				END
+				ELSE
+				BEGIN
+					INSERT INTO dbo.DeduccionXMesXEmpleado
+					VALUES(
+						(@Monto*-1), 
+						@idMPXE, 
+						(SELECT TOP(1) IdTipoDeduccion FROM @TablaDeducciones)
+					)
+				END
+				
+
+
+
+
 				DELETE TOP (1) FROM @TablaDeducciones
 				SELECT @Count = COUNT(*) FROM @TablaDeducciones;
 

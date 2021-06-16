@@ -12,8 +12,8 @@ DECLARE @Operaciones TABLE(				-- Tabla donde iteramos todas las operaciones
 DECLARE @InsercionMarcas TABLE			-- Tabla donde iteramos las Marcas de Asistencia
 (
 	ValorDocumentoIdentidad VARCHAR(32),
-	FechaEntrada DATE,
-	FechaSalida DATE,
+	FechaEntrada DATETIME,
+	FechaSalida DATETIME,
 	Secuencia INT,
 	ProduceError INT
 ) 
@@ -91,8 +91,8 @@ DECLARE @IdDeduccion INT
 DECLARE @Monto DECIMAL(18,3)
 DECLARE @IdJornada INT
 
-DECLARE @FechaEntrada DATE
-DECLARE @FechaSalida DATE
+DECLARE @FechaEntrada DATETIME
+DECLARE @FechaSalida DATETIME
 
 
 -- SIMULACION
@@ -168,13 +168,15 @@ BEGIN
 				@FechaEntrada = Emp.FechaEntrada, 
 				@FechaSalida = Emp.FechaSalida 
 			FROM @InsercionMarcas AS Emp
+			
+			PRINT('Inicia Marca Asistencia')
 
-			/*
 			EXEC sp_InsertarMarca
 				@ValorDocumentoIdentidad
                 , @FechaEntrada
-				, @FechaSalida
-			*/
+				, @FechaSalida,
+				0
+			
 			DELETE TOP (1) FROM @InsercionMarcas
             SELECT @Count = COUNT(*) FROM @InsercionMarcas;
 		END
@@ -325,3 +327,7 @@ BEGIN
 
 	SET @primeraFecha = DATEADD(DAY,1,@primeraFecha);
 END
+
+SELECT * FROM DeduccionXMesXEmpleado
+SELECT * FROM PlanillaXMesXEmpleado WHERE Id = 1
+Select * from 
