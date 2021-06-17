@@ -164,14 +164,11 @@ BEGIN
 
         WHILE @Count > 0
 		BEGIN
-			select TOP(1)* from @InsercionMarcas where ValorDocumentoIdentidad = '96311578'
 			SELECT TOP(1)
 				@ValorDocumentoIdentidad = Emp.ValorDocumentoIdentidad, 
 				@FechaEntrada = Emp.FechaEntrada, 
 				@FechaSalida = Emp.FechaSalida 
 			FROM @InsercionMarcas AS Emp
-			
-			PRINT('Inicia Marca Asistencia')
 
 			EXEC sp_InsertarMarca
 				@ValorDocumentoIdentidad
