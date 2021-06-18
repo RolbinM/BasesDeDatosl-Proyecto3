@@ -87,7 +87,7 @@ DECLARE @IdPuesto INT
 DECLARE @IdDepartamento INT
 DECLARE @IdTipoDocumentoIdentidad INT
 DECLARE @Username VARCHAR(64)
-DECLARE @Contraseña VARCHAR(64)
+DECLARE @ContraseÃ±a VARCHAR(64)
 
 DECLARE @IdDeduccion INT
 DECLARE @Monto DECIMAL(18,3)
@@ -201,7 +201,7 @@ BEGIN
 				@IdDepartamento = Emp.IdDepartamento, 
 				@IdTipoDocumentoIdentidad = Emp.IdTipoDocumentoIdentidad, 
 				@Username = Emp.Username, 
-				@Contraseña = Emp.Pwd
+				@ContraseÃ±a = Emp.Pwd
 			FROM @InsercionEmpleados AS Emp
 
 
@@ -213,7 +213,7 @@ BEGIN
                 , @IdDepartamento
                 , @IdTipoDocumentoIdentidad
                 , @Username
-                , @Contraseña
+                , @ContraseÃ±a
 
 			DELETE TOP (1) FROM @InsercionEmpleados
             SELECT @Count = COUNT(*) FROM @InsercionEmpleados;
@@ -323,14 +323,6 @@ BEGIN
             SELECT @Count = COUNT(*) FROM @IngresarJornada;
 		END
 	END
-	IF @primeraFecha = '2020-11-12'
-	BEGIN
-		SELECT * FROM SemanaPlanilla 
-		SELECT * FROM MesPlanilla
-		SELECT * FROM Jornada
-		SELECT * FROM Empleado
-	END
-
 
 	SET @primeraFecha = DATEADD(DAY,1,@primeraFecha);
 END
