@@ -1,5 +1,6 @@
-
 USE BDPlanillaObrera
+
+SET LANGUAGE Spanish;
 
 EXEC sp_EliminarDatos					-- Vaciar datos de la base
 
@@ -242,7 +243,7 @@ BEGIN
 		END
 	END
 	
-
+	/*
 	-- Asociacion de empleado a una Deduccion 
 	IF((SELECT mt.Datos.exist('Operacion/AsociaEmpleadoConDeduccion') FROM @Operaciones mt WHERE mt.Operacion = @primeraFecha) = 1)
 	BEGIN
@@ -295,7 +296,7 @@ BEGIN
             SELECT @Count = COUNT(*) FROM @DesasociarEmpleados;
 		END
 	END
-
+	*/
 
 	-- Asignar Tipos de Jornada
 	IF((SELECT mt.Datos.exist('Operacion/TipoDeJornadaProximaSemana') FROM @Operaciones mt WHERE mt.Operacion = @primeraFecha) = 1)
@@ -322,16 +323,14 @@ BEGIN
             SELECT @Count = COUNT(*) FROM @IngresarJornada;
 		END
 	END
+	IF @primeraFecha = '2020-11-12'
+	BEGIN
+		SELECT * FROM SemanaPlanilla 
+		SELECT * FROM MesPlanilla
+		SELECT * FROM Jornada
+		SELECT * FROM Empleado
+	END
 
 
 	SET @primeraFecha = DATEADD(DAY,1,@primeraFecha);
 END
-
-SELECT * FROM Empleado
-
-SELECT * FROM MarcaAsistencia AS Ma
-INNER JOIN dbo.Jornada AS Jor
-ON Ma.IdJornada = Jor.Id 
-INNER JOIN dbo.Empleado AS Emp
-ON Emp.Id = Jor.IdEmpleado
-WHERE Emp.Id = 1
