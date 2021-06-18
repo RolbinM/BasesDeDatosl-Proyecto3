@@ -13,7 +13,7 @@ DECLARE @Operaciones TABLE(				-- Tabla donde iteramos todas las operaciones
 
 DECLARE @InsercionMarcas TABLE			-- Tabla donde iteramos las Marcas de Asistencia
 (
-	ValorDocumentoIdentidad VARCHAR(32),
+	ValorDocumentoIdentidad INT,
 	FechaEntrada DATETIME,
 	FechaSalida DATETIME,
 	Secuencia INT,
@@ -23,7 +23,7 @@ DECLARE @InsercionMarcas TABLE			-- Tabla donde iteramos las Marcas de Asistenci
 DECLARE @InsercionEmpleados TABLE(		-- Tabla donde ingresamos todos los empleados a insertar
 	Fecha DATE,
 	Nombre VARCHAR(64),
-	ValorDocumentoIdentidad VARCHAR(32),
+	ValorDocumentoIdentidad INT,
 	FechaNacimiento DATE,
 	IdPuesto INT,
 	IdTipoDocumentoIdentidad INT,
@@ -35,14 +35,14 @@ DECLARE @InsercionEmpleados TABLE(		-- Tabla donde ingresamos todos los empleado
 )
 
 DECLARE @EliminarEmpleados TABLE (		-- Tabla donde guardamos todos los empleados a eliminar
-	ValorDocumentoIdentidad VARCHAR(32),
+	ValorDocumentoIdentidad INT,
 	Secuencia INT,
 	ProduceError INT
 ) 
 
 DECLARE @AsociarEmpleados TABLE			-- Tabla donde guardamos todas las asociaciones 
 (
-	ValorDocumentoIdentidad VARCHAR(32),
+	ValorDocumentoIdentidad INT,
 	IdDeduccion INT,
 	Monto DECIMAL(18,3),
 	Secuencia INT,
@@ -51,7 +51,7 @@ DECLARE @AsociarEmpleados TABLE			-- Tabla donde guardamos todas las asociacione
 
 DECLARE @DesasociarEmpleados TABLE		-- Tabla donde guardamos todas las desasociaciones
 (
-	ValorDocumentoIdentidad VARCHAR(32),
+	ValorDocumentoIdentidad INT,
 	IdDeduccion INT,
 	Secuencia INT,
 	ProduceError INT
@@ -59,7 +59,7 @@ DECLARE @DesasociarEmpleados TABLE		-- Tabla donde guardamos todas las desasocia
 
 DECLARE @IngresarJornada TABLE			-- Tablas donde almacenamos las siguientes jornadas
 (
-	ValorDocumentoIdentidad VARCHAR(32),
+	ValorDocumentoIdentidad INT,
 	IdJornada INT,
 	Secuencia INT,
 	ProduceError INT
@@ -81,7 +81,7 @@ DECLARE @Secuencia INT
 DECLARE @ProduceError INT
 
 DECLARE @Nombre VARCHAR(64)
-DECLARE @ValorDocumentoIdentidad VARCHAR(32)
+DECLARE @ValorDocumentoIdentidad INT
 DECLARE @FechaNacimiento DATE
 DECLARE @IdPuesto INT
 DECLARE @IdDepartamento INT
@@ -155,7 +155,7 @@ BEGIN
 	END
 
 
-	-- Ingreso de la Marca Asistencia 
+		-- Ingreso de la Marca Asistencia 
 	IF((SELECT mt.Datos.exist('Operacion/MarcaDeAsistencia') FROM @Operaciones mt WHERE mt.Operacion = @primeraFecha) = 1)
 	BEGIN
 		INSERT INTO @InsercionMarcas
@@ -226,7 +226,7 @@ BEGIN
 	BEGIN
 		INSERT INTO @EliminarEmpleados
 			SELECT * FROM dbo.CargarEliminarEmpleados(@Datos)
-
+		
         SELECT @Count = COUNT(*) FROM @EliminarEmpleados;
 		
         WHILE @Count > 0
@@ -241,9 +241,9 @@ BEGIN
 			DELETE TOP (1) FROM @EliminarEmpleados
             SELECT @Count = COUNT(*) FROM @EliminarEmpleados;
 		END
+
 	END
 	
-	/*
 	-- Asociacion de empleado a una Deduccion 
 	IF((SELECT mt.Datos.exist('Operacion/AsociaEmpleadoConDeduccion') FROM @Operaciones mt WHERE mt.Operacion = @primeraFecha) = 1)
 	BEGIN
@@ -296,8 +296,7 @@ BEGIN
             SELECT @Count = COUNT(*) FROM @DesasociarEmpleados;
 		END
 	END
-	*/
-
+	
 	-- Asignar Tipos de Jornada
 	IF((SELECT mt.Datos.exist('Operacion/TipoDeJornadaProximaSemana') FROM @Operaciones mt WHERE mt.Operacion = @primeraFecha) = 1)
 	BEGIN
@@ -323,6 +322,16 @@ BEGIN
             SELECT @Count = COUNT(*) FROM @IngresarJornada;
 		END
 	END
+<<<<<<< HEAD
+	
+	/*
+	IF @primeraFecha = '2020-11-20'
+	BEGIN
+		SELECT * FROM PlanillaXSemanaXEmpleado where id = 32
+	END
+	*/
+=======
+>>>>>>> a52b3fee7baaee21b87cd945fb6c041bc22f7d20
 
 	SET @primeraFecha = DATEADD(DAY,1,@primeraFecha);
 END
