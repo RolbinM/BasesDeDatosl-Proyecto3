@@ -2,7 +2,7 @@ USE BDPlanillaObrera
 
 SET LANGUAGE Spanish;
 
-EXEC sp_EliminarDatos					-- Vaciar datos de la base
+--EXEC sp_EliminarDatos					-- Vaciar datos de la base
 
 
 -- Declaracion de Tablas Variable
@@ -322,16 +322,6 @@ BEGIN
             SELECT @Count = COUNT(*) FROM @IngresarJornada;
 		END
 	END
-<<<<<<< HEAD
-	
-	/*
-	IF @primeraFecha = '2020-11-20'
-	BEGIN
-		SELECT * FROM PlanillaXSemanaXEmpleado where id = 32
-	END
-	*/
-=======
->>>>>>> a52b3fee7baaee21b87cd945fb6c041bc22f7d20
 
 	SET @primeraFecha = DATEADD(DAY,1,@primeraFecha);
 END
