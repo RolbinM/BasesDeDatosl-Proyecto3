@@ -22,6 +22,7 @@ BEGIN
 	INSERT INTO PlanillaXMesXEmpleado
 	VALUES
 	(
+		@idEmpleado,
 		0,
 		0,
 		(SELECT MAX(Id) FROM dbo.MesPlanilla)
