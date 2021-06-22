@@ -87,7 +87,7 @@ DECLARE @IdPuesto INT
 DECLARE @IdDepartamento INT
 DECLARE @IdTipoDocumentoIdentidad INT
 DECLARE @Username VARCHAR(64)
-DECLARE @ContraseÃ±a VARCHAR(64)
+DECLARE @Contraseña VARCHAR(64)
 
 DECLARE @IdDeduccion INT
 DECLARE @Monto DECIMAL(18,3)
@@ -95,6 +95,11 @@ DECLARE @IdJornada INT
 
 DECLARE @FechaEntrada DATETIME
 DECLARE @FechaSalida DATETIME
+
+DECLARE @SecItera INT
+DECLARE @SecInicio INT
+DECLARE @SecFinal INT
+DECLARE @UltimaCorrida INT
 
 
 -- SIMULACION
@@ -130,6 +135,20 @@ FROM @catalogo.nodes('Datos/Operacion') AS T(Item)
 -- Inicia Simulacion ---------------------------------------------------------------
 WHILE(@primeraFecha <= @ultimaFecha)
 BEGIN
+	INSERT INTO dbo.Corrida(
+		FechaOperacion,
+		TipoRegistro,
+		PostTime
+	)
+	VALUES(
+		@primeraFecha,
+		1,
+		GETDATE()
+	)
+
+	SELECT
+		@UltimaCorrida = (SELECT MAX(Id) FROM dbo.Corrida)
+
 	SELECT @Datos = CONVERT(XML, Datos)
 	FROM @Operaciones
 	WHERE Operacion = @primeraFecha
@@ -155,21 +174,38 @@ BEGIN
 	END
 
 
+
 		-- Ingreso de la Marca Asistencia 
 	IF((SELECT mt.Datos.exist('Operacion/MarcaDeAsistencia') FROM @Operaciones mt WHERE mt.Operacion = @primeraFecha) = 1)
 	BEGIN
+		INSERT INTO Bitacora
+		VALUES
+		(
+			'Nueva iteracion procesando Marca Asistencia',
+			@primeraFecha
+		)
+
 		INSERT INTO @InsercionMarcas
 			SELECT * FROM dbo.CargarInsercionMarca(@Datos)
 
-		SELECT @Count = COUNT(*) FROM @InsercionMarcas;
+		SELECT 
+			@SecInicio = MIN(Secuencia), 
+			@SecFinal = MAX(Secuencia) 
+		FROM @InsercionMarcas;
+                   
+		SELECT 
+			@SecItera = @SecInicio;
 
-        WHILE @Count > 0
+        WHILE @SecItera <= @SecFinal
 		BEGIN
-			SELECT TOP(1)
+			SELECT
 				@ValorDocumentoIdentidad = Emp.ValorDocumentoIdentidad, 
 				@FechaEntrada = Emp.FechaEntrada, 
-				@FechaSalida = Emp.FechaSalida 
+				@FechaSalida = Emp.FechaSalida,
+				@Secuencia = Emp.Secuencia,
+				@ProduceError = Emp.ProduceError
 			FROM @InsercionMarcas AS Emp
+			WHERE Emp.Secuencia = @SecItera
 
 			EXEC sp_InsertarMarca
 				@ValorDocumentoIdentidad
@@ -177,23 +213,65 @@ BEGIN
 				, @FechaSalida,
 				0
 			
-			DELETE TOP (1) FROM @InsercionMarcas
-            SELECT @Count = COUNT(*) FROM @InsercionMarcas;
+			IF @ProduceError = 1
+			BEGIN
+				INSERT INTO Bitacora
+				VALUES
+				(
+					'Hubo error en registro numero '+ CONVERT(VARCHAR(5),@SecItera) +' procesando Marcas Asistencia',
+					@primeraFecha
+				)
+
+				INSERT INTO DetalleCorrida
+				VALUES 
+				(
+					@UltimaCorrida,
+					6,
+					@SecItera
+				)
+			END
+			ELSE IF @SecItera = @SecFinal
+			BEGIN
+				INSERT INTO DetalleCorrida
+				VALUES 
+				(
+					@UltimaCorrida,
+					6,
+					@SecItera
+				)
+			END
+
+			SELECT @SecItera = @SecItera + 1
 		END
+
+		DELETE FROM @InsercionMarcas
 	END
 
 
 	-- Ingreso de los empleados nuevos 
 	IF((SELECT mt.Datos.exist('Operacion/NuevoEmpleado') FROM @Operaciones mt WHERE mt.Operacion = @primeraFecha) = 1)
 	BEGIN
+		INSERT INTO Bitacora
+		VALUES
+		(
+			'Nueva iteracion procesando Nuevos empleados',
+			@primeraFecha
+		)
+
 		INSERT INTO @InsercionEmpleados
 			SELECT * FROM dbo.CargarInsercionEmpleados(@Datos)
 
-		SELECT @Count = COUNT(*) FROM @InsercionEmpleados;
+		SELECT 
+			@SecInicio = MIN(Secuencia), 
+			@SecFinal = MAX(Secuencia) 
+		FROM @InsercionEmpleados;
+                   
+		SELECT 
+			@SecItera = @SecInicio;
 
-        WHILE @Count > 0
+        WHILE @SecItera <= @SecFinal
 		BEGIN
-			SELECT TOP(1)
+			SELECT
 				@Nombre = Emp.Nombre, 
 				@ValorDocumentoIdentidad = Emp.ValorDocumentoIdentidad, 
 				@FechaNacimiento = Emp.FechaNacimiento, 
@@ -201,8 +279,11 @@ BEGIN
 				@IdDepartamento = Emp.IdDepartamento, 
 				@IdTipoDocumentoIdentidad = Emp.IdTipoDocumentoIdentidad, 
 				@Username = Emp.Username, 
-				@ContraseÃ±a = Emp.Pwd
+				@Contraseña = Emp.Pwd,
+				@Secuencia = Emp.Secuencia,
+				@ProduceError = Emp.ProduceError
 			FROM @InsercionEmpleados AS Emp
+			WHERE Emp.Secuencia = @SecItera
 
 
 			EXEC sp_InsertarEmpleado
@@ -213,52 +294,138 @@ BEGIN
                 , @IdDepartamento
                 , @IdTipoDocumentoIdentidad
                 , @Username
-                , @ContraseÃ±a
+                , @Contraseña
+			
+			IF @ProduceError = 1
+			BEGIN
+				INSERT INTO Bitacora
+				VALUES
+				(
+					'Hubo error en registro numero '+ CONVERT(VARCHAR(5),@SecItera) +' procesando Nuevos Empleados',
+					@primeraFecha
+				)
 
-			DELETE TOP (1) FROM @InsercionEmpleados
-            SELECT @Count = COUNT(*) FROM @InsercionEmpleados;
+				INSERT INTO DetalleCorrida
+				VALUES 
+				(
+					@UltimaCorrida,
+					1,
+					@SecItera
+				)
+			END
+			ELSE IF @SecItera = @SecFinal
+			BEGIN
+				INSERT INTO DetalleCorrida
+				VALUES 
+				(
+					@UltimaCorrida,
+					1,
+					@SecItera
+				)
+			END
+			
+			SELECT @SecItera = @SecItera + 1
 		END
+		DELETE FROM @InsercionEmpleados
 	END
 
 
+	
 	-- Eliminacion de empleados 
 	IF((SELECT mt.Datos.exist('Operacion/EliminarEmpleado') FROM @Operaciones mt WHERE mt.Operacion = @primeraFecha) = 1)
 	BEGIN
+		INSERT INTO Bitacora
+		VALUES
+		(
+			'Nueva iteracion procesando Eliminar empleados',
+			@primeraFecha
+		)
 		INSERT INTO @EliminarEmpleados
 			SELECT * FROM dbo.CargarEliminarEmpleados(@Datos)
 		
-        SELECT @Count = COUNT(*) FROM @EliminarEmpleados;
-		
-        WHILE @Count > 0
+        SELECT 
+			@SecInicio = MIN(Secuencia), 
+			@SecFinal = MAX(Secuencia) 
+		FROM @EliminarEmpleados;
+                   
+		SELECT 
+			@SecItera = @SecInicio;
+
+        WHILE @SecItera <= @SecFinal
 		BEGIN
-            SELECT TOP(1)
-				@ValorDocumentoIdentidad = Emp.ValorDocumentoIdentidad  
+            SELECT
+				@ValorDocumentoIdentidad = Emp.ValorDocumentoIdentidad  ,
+				@Secuencia = Emp.Secuencia,
+				@ProduceError = Emp.ProduceError
 			FROM @EliminarEmpleados AS Emp
+			WHERE Emp.Secuencia = @SecItera
 
 			EXEC sp_EliminarEmpleado
 				@ValorDocumentoIdentidad
 
-			DELETE TOP (1) FROM @EliminarEmpleados
-            SELECT @Count = COUNT(*) FROM @EliminarEmpleados;
-		END
+			IF @ProduceError = 1
+			BEGIN
+				INSERT INTO Bitacora
+				VALUES
+				(
+					'Hubo error en registro numero '+ CONVERT(VARCHAR(5),@SecItera) +' procesando Eliminar Empleados',
+					@primeraFecha
+				)
 
+				INSERT INTO DetalleCorrida
+				VALUES 
+				(
+					@UltimaCorrida,
+					2,
+					@SecItera
+				)
+			END
+			ELSE IF @SecItera = @SecFinal
+			BEGIN
+				INSERT INTO DetalleCorrida
+				VALUES 
+				(
+					@UltimaCorrida,
+					2,
+					@SecItera
+				)
+			END
+
+			SELECT @SecItera = @SecItera + 1
+		END
+		DELETE FROM @EliminarEmpleados
 	END
 	
 	-- Asociacion de empleado a una Deduccion 
 	IF((SELECT mt.Datos.exist('Operacion/AsociaEmpleadoConDeduccion') FROM @Operaciones mt WHERE mt.Operacion = @primeraFecha) = 1)
 	BEGIN
+		INSERT INTO Bitacora
+		VALUES
+		(
+			'Nueva iteracion procesando Asociar Deducciones',
+			@primeraFecha
+		)
 		INSERT INTO @AsociarEmpleados
 			SELECT * FROM dbo.CargarAsociarEmpleados(@Datos)
 
-        SELECT @Count = COUNT(*) FROM @AsociarEmpleados;
-		
-        WHILE @Count > 0
+        SELECT 
+			@SecInicio = MIN(Secuencia), 
+			@SecFinal = MAX(Secuencia) 
+		FROM @AsociarEmpleados;
+                   
+		SELECT 
+			@SecItera = @SecInicio;
+
+        WHILE @SecItera <= @SecFinal
 		BEGIN
-            SELECT TOP(1)
+            SELECT 
 				@ValorDocumentoIdentidad = Emp.ValorDocumentoIdentidad,
 				@IdDeduccion = Emp.IdDeduccion,
-				@Monto = Emp.Monto
+				@Monto = Emp.Monto,
+				@Secuencia = Emp.Secuencia,
+				@ProduceError = Emp.ProduceError
 			FROM @AsociarEmpleados AS Emp
+			WHERE Emp.Secuencia = @SecItera
 
 			EXEC sp_AsociarDeduccion
 				@primeraFecha,
@@ -266,62 +433,186 @@ BEGIN
 				@IdDeduccion,
 				@Monto
 
-			DELETE TOP (1) FROM @AsociarEmpleados
-            SELECT @Count = COUNT(*) FROM @AsociarEmpleados;
+			IF @ProduceError = 1
+			BEGIN
+				INSERT INTO Bitacora
+				VALUES
+				(
+					'Hubo error en registro numero '+ CONVERT(VARCHAR(5),@SecItera) +' procesando Asociar Deducciones',
+					@primeraFecha
+				)
+
+				INSERT INTO DetalleCorrida
+				VALUES 
+				(
+					@UltimaCorrida,
+					3,
+					@SecItera
+				)
+			END
+			ELSE IF @SecItera = @SecFinal
+			BEGIN
+				INSERT INTO DetalleCorrida
+				VALUES 
+				(
+					@UltimaCorrida,
+					3,
+					@SecItera
+				)
+			END
+
+			SELECT @SecItera = @SecItera + 1
 		END
+		DELETE FROM @AsociarEmpleados
 	END
 
 
 	-- Desasociacion de empleado a una Deduccion 
 	IF((SELECT mt.Datos.exist('Operacion/DesasociaEmpleadoConDeduccion') FROM @Operaciones mt WHERE mt.Operacion = @primeraFecha) = 1)
 	BEGIN
+		INSERT INTO Bitacora
+		VALUES
+		(
+			'Nueva iteracion procesando Desasociar Deducciones',
+			@primeraFecha
+		)
 		INSERT INTO @DesasociarEmpleados
 			SELECT * FROM dbo.CargarDesasociarEmpleados(@Datos)
 
-        SELECT @Count = COUNT(*) FROM @DesasociarEmpleados;
-		
-        WHILE @Count > 0
+        SELECT 
+			@SecInicio = MIN(Secuencia), 
+			@SecFinal = MAX(Secuencia) 
+		FROM @DesasociarEmpleados;
+                   
+		SELECT 
+			@SecItera = @SecInicio;
+
+        WHILE @SecItera <= @SecFinal
 		BEGIN
-            SELECT TOP(1)
+            SELECT
 				@ValorDocumentoIdentidad = Emp.ValorDocumentoIdentidad,
-				@IdDeduccion = Emp.IdDeduccion
+				@IdDeduccion = Emp.IdDeduccion,
+				@Secuencia = Emp.Secuencia,
+				@ProduceError = Emp.ProduceError
 			FROM @DesasociarEmpleados AS Emp
+			WHERE Emp.Secuencia = @SecItera
 
 			EXEC sp_DesasociarDeduccion
 				@primeraFecha,
 				@ValorDocumentoIdentidad,
 				@IdDeduccion
 
-			DELETE TOP (1) FROM @DesasociarEmpleados
-            SELECT @Count = COUNT(*) FROM @DesasociarEmpleados;
+			IF @ProduceError = 1
+			BEGIN
+				INSERT INTO Bitacora
+				VALUES
+				(
+					'Hubo error en registro numero '+ CONVERT(VARCHAR(5),@SecItera) +' procesando Desasociar Deducciones',
+					@primeraFecha
+				)
+
+				INSERT INTO DetalleCorrida
+				VALUES 
+				(
+					@UltimaCorrida,
+					4,
+					@SecItera
+				)
+			END
+			ELSE IF @SecItera = @SecFinal
+			BEGIN
+				INSERT INTO DetalleCorrida
+				VALUES 
+				(
+					@UltimaCorrida,
+					4,
+					@SecItera
+				)
+			END
+
+			SELECT @SecItera = @SecItera + 1
 		END
+		DELETE FROM @DesasociarEmpleados
 	END
 	
 	-- Asignar Tipos de Jornada
 	IF((SELECT mt.Datos.exist('Operacion/TipoDeJornadaProximaSemana') FROM @Operaciones mt WHERE mt.Operacion = @primeraFecha) = 1)
 	BEGIN
+		INSERT INTO Bitacora
+		VALUES
+		(
+			'Nueva iteracion procesando Nuevas Jornadas',
+			@primeraFecha
+		)
 		INSERT INTO @IngresarJornada
 			SELECT * FROM dbo.CargarIngresarJornada(@Datos)
 
-        SELECT @Count = COUNT(*) FROM @IngresarJornada;
-		
-        WHILE @Count > 0
+        SELECT 
+			@SecInicio = MIN(Secuencia), 
+			@SecFinal = MAX(Secuencia) 
+		FROM @IngresarJornada;
+                   
+		SELECT 
+			@SecItera = @SecInicio;
+
+        WHILE @SecItera <= @SecFinal
 		BEGIN
-            SELECT TOP(1)
+            SELECT
 				@ValorDocumentoIdentidad = Emp.ValorDocumentoIdentidad,
 				@IdJornada = Emp.IdJornada,
 				@Secuencia = Emp.Secuencia,
 				@ProduceError = Emp.ProduceError
 			FROM @IngresarJornada AS Emp
+			WHERE Emp.Secuencia = @SecItera
 			
 			EXEC sp_IngresarJornada
 				@ValorDocumentoIdentidad,
 				@IdJornada
 			
-			DELETE TOP (1) FROM @IngresarJornada
-            SELECT @Count = COUNT(*) FROM @IngresarJornada;
+			IF @ProduceError = 1
+			BEGIN
+				INSERT INTO Bitacora
+				VALUES
+				(
+					'Hubo error en registro numero '+ CONVERT(VARCHAR(5),@SecItera) +' procesando Nuevas Jornadas',
+					@primeraFecha
+				)
+
+				INSERT INTO DetalleCorrida
+				VALUES 
+				(
+					@UltimaCorrida,
+					5,
+					@SecItera
+				)
+			END
+			ELSE IF @SecItera = @SecFinal
+			BEGIN
+				INSERT INTO DetalleCorrida
+				VALUES 
+				(
+					@UltimaCorrida,
+					5,
+					@SecItera
+				)
+			END
+
+			SELECT @SecItera = @SecItera + 1
 		END
+		DELETE FROM @IngresarJornada
 	END
+
+	INSERT INTO dbo.Corrida
+	(
+		FechaOperacion,
+		TipoRegistro,
+		PostTime
+	)
+	VALUES(
+		@primeraFecha,
+		2,
+		GETDATE()
+	)
 
 	SET @primeraFecha = DATEADD(DAY,1,@primeraFecha);
 END
