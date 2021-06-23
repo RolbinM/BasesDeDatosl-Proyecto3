@@ -616,3 +616,4 @@ BEGIN
 
 	SET @primeraFecha = DATEADD(DAY,1,@primeraFecha);
 END
+
